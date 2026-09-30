@@ -40,6 +40,32 @@
 
 需要支持 WebGL 的现代浏览器（Chrome / Edge / Firefox）。
 
+## 在线游玩（不下载，直接开网页）
+
+CNB 平台本身不提供 GitHub Pages 式的静态托管，有两种从仓库直接开玩的方式：
+
+### 方式一：云开发预览（零配置，最快）
+
+1. 打开仓库 [cnb.cool/OASIS-Art3mis/webcs](https://cnb.cool/OASIS-Art3mis/webcs)，点 **云开发** 进入 WebIDE
+2. 在终端执行 `python3 -m http.server 8080`（默认监听 0.0.0.0，符合端口预览要求）
+3. 在 WebIDE 的 **PORTS** 面板添加 `8080` 端口，打开生成的转发地址（形如 `https://xxxx-8080.cnb.run`）即可开玩
+
+> 工作区停止后地址失效，下次进入重复第 2、3 步即可。
+
+### 方式二：推送自动部署到 EdgeOne Pages（持久域名，推荐）
+
+利用本仓库已带好的 `.cnb.yml` 流水线，每次 `git push` 自动把游戏部署到腾讯云 EdgeOne Pages（有免费套餐，分配默认域名）：
+
+1. 注册并登录 **腾讯云 EdgeOne Pages**，在项目设置里创建 **API Token**
+2. 在 CNB 新建一个**密钥仓库**（如 `OASIS-Art3mis/env`），在其中新建文件 `edgeone.yml`：
+
+   ```yaml
+   EO_SECRET: "你的 EdgeOne Pages Token"
+   ```
+
+3. 确认本仓库 `.cnb.yml` 中 `imports` 的 URL 与你的密钥仓库路径一致（当前为 `OASIS-Art3mis/env/-/blob/main/edgeone.yml`）
+4. 推送到 `main`，流水线自动部署；完成后在 EdgeOne Pages 控制台获取默认域名（形如 `xxx.edgeone.app`），浏览器直接打开即玩
+
 ## 技术要点
 
 - **Three.js** 渲染（本地 `three.min.js`，离线可玩）
@@ -57,6 +83,7 @@ webcs/
 ├── cs16.html        # 页面、HUD 与样式
 ├── game.js          # 全部游戏逻辑（单文件）
 ├── three.min.js     # Three.js 本地副本
+├── .cnb.yml         # CNB 流水线：推送自动部署到 EdgeOne Pages
 └── docs/
     └── screenshot.png
 ```
