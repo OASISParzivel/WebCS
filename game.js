@@ -43,7 +43,7 @@ var MODES = {
 var GG_LADDER = ['glock', 'usp', 'deagle', 'mp5', 'p90', 'famas', 'ak', 'm4', 'xm1014', 'scout', 'awp', 'knife'];
 
 var WEAPONS = {
-  usp:    { name: 'USP',        cat: 'pistol', slot: 2, dmg: 30,  headMul: 4, interval: 0.17,  auto: false, mag: 12,  reserve: 48,  reload: 2.1, spread: 0.009,  recoil: 0.010, price: 0,    zoom: 1, snd: 'pistol',  speedMul: 1 },
+  usp:    { name: 'USP',        cat: 'pistol', slot: 2, dmg: 30,  headMul: 4, interval: 0.17,  auto: false, mag: 12,  reserve: 48,  reload: 2.1, spread: 0.009,  recoil: 0.010, price: 500,  zoom: 1, snd: 'pistol',  speedMul: 1 },
   glock:  { name: 'Glock-18',   cat: 'pistol', slot: 2, dmg: 26,  headMul: 4, interval: 0.15,  auto: false, mag: 20,  reserve: 80,  reload: 2.0, spread: 0.010,  recoil: 0.008, price: 400,  zoom: 1, snd: 'pistol',  speedMul: 1 },
   deagle: { name: '沙漠之鹰',   cat: 'pistol', slot: 2, dmg: 53,  headMul: 4, interval: 0.30,  auto: false, mag: 7,   reserve: 35,  reload: 2.2, spread: 0.012,  recoil: 0.028, price: 700,  zoom: 1, snd: 'deagle',  speedMul: 1 },
   mp5:    { name: 'MP5',        cat: 'smg',    slot: 1, dmg: 24,  headMul: 4, interval: 0.085, auto: true,  mag: 30,  reserve: 120, reload: 2.3, spread: 0.012,  recoil: 0.009, price: 1500, zoom: 1, snd: 'smg',     speedMul: 1.05 },
@@ -102,7 +102,7 @@ var G = {
 var P = {
   pos: null, vel: null,
   yaw: 0, pitch: 0,
-  hp: 100, armor: 0, money: CFG.startMoney,
+  hp: 100, armor: 0, helmet: false, money: CFG.startMoney,
   grounded: true, crouch: false, dead: false,
   weapons: {}, cur: 'usp',
   bloom: 0, lastShot: 0, reloading: 0, switching: 0,
@@ -1168,7 +1168,10 @@ function botShoot(b, tgt, dist, now) {
 
   if (hit) {
     var dmg = wd.dmg * D.dmgMul * (0.85 + Math.random() * 0.3);
-    if (Math.random() < D.hs) dmg *= 2.2; // 爆头
+    if (Math.random() < D.hs) {
+      dmg *= 2.2; // 爆头
+      if (isP && P.helmet) dmg *= 0.6; // 头盔减免爆头伤害
+    }
     if (isP) damagePlayer(dmg, b.name, b.team, wd.name, b);
     else damageBot(tgt.ref, dmg, b.name, b.team, wd.name, b);
   }
@@ -1593,7 +1596,7 @@ function startMatch() {
   G.ct = 0; G.t = 0; G.ctK = 0; G.tK = 0; G.round = 0;
   G.pendingEnd = null;
   P.money = G.mode === 'gg' ? 0 : CFG.startMoney;
-  P.kills = 0; P.armor = 0; P.ggTier = 0; P.respawnT = 0;
+  P.kills = 0; P.armor = 0; P.helmet = false; P.ggTier = 0; P.respawnT = 0;
   P.weapons = G.mode === 'gg'
     ? { glock: mkWpn('glock'), knife: mkWpn('knife') }
     : { usp: mkWpn('usp'), knife: mkWpn('knife') };
@@ -1753,12 +1756,46 @@ function updateRound(dt) {
 
 // ---------------- 购买 ----------------
 var BUY_CATS = [
-  { label: '手枪',   items: [{ key: 'glock' }, { key: 'deagle' }] },
-  { label: '微冲',   items: [{ key: 'mp5' }, { key: 'p90' }] },
-  { label: '步枪',   items: [{ key: 'galil' }, { key: 'famas' }, { key: 'ak' }, { key: 'm4' }, { key: 'aug' }, { key: 'sg552' }] },
-  { label: '狙击',   items: [{ key: 'scout' }, { key: 'awp' }, { key: 'g3' }] },
-  { label: '重火力', items: [{ key: 'xm1014' }, { key: 'm249' }] },
-  { label: '装备',   items: [{ key: 'armor', name: '防弹护甲', price: 650 }] }
+  // 分类与槽位号沿用 CS1.6 原版编号：B→1→2 = USP，B→4→2 = AK-47，B→3→3 = MP5……
+  // 原版有而本作未收录的枪（P228/M3/MAC-10 等）不占显示位，编号保留空缺
+  { label: '手枪', items: [
+    { slot: 1, key: 'glock' },
+    { slot: 2, key: 'usp' },
+    { slot: 4, key: 'deagle' }
+  ] },
+  { label: '霰弹枪', items: [
+    { slot: 2, key: 'xm1014' }
+  ] },
+  { label: '微型冲锋枪', items: [
+    { slot: 3, key: 'mp5' },
+    { slot: 5, key: 'p90' }
+  ] },
+  // 原版步枪分类按阵营区分（T: B42=AK-47 / CT: B42=M4A1）；本作玩家为 CT 但不限购，
+  // 按 T 系原版槽位排 1-6（B42=AK-47），CT 专属步枪顺延 7-9
+  { label: '步枪', items: [
+    { slot: 1, key: 'galil', tag: 'T' },
+    { slot: 2, key: 'ak', tag: 'T' },
+    { slot: 3, key: 'scout' },
+    { slot: 4, key: 'sg552', tag: 'T' },
+    { slot: 5, key: 'awp' },
+    { slot: 6, key: 'g3' },
+    { slot: 7, key: 'famas', tag: 'CT' },
+    { slot: 8, key: 'm4', tag: 'CT' },
+    { slot: 9, key: 'aug', tag: 'CT' }
+  ] },
+  { label: '机关枪', items: [
+    { slot: 1, key: 'm249' }
+  ] },
+  { label: '主武器弹药', items: [
+    { slot: 1, key: 'ammoP', name: '主武器弹药 · 补满', price: 60, unit: '匣' }
+  ] },
+  { label: '副武器弹药', items: [
+    { slot: 1, key: 'ammoS', name: '副武器弹药 · 补满', price: 25, unit: '匣' }
+  ] },
+  { label: '装备', items: [
+    { slot: 1, key: 'armor', name: '防弹衣', price: 650 },
+    { slot: 2, key: 'helmet', name: '防弹衣+头盔', price: 1000 }
+  ] }
 ];
 
 var buyOpen = false;
@@ -1792,10 +1829,14 @@ function buyRender() {
       wd = WEAPONS[it.key];
       var name = wd ? wd.name : it.name;
       var price = wd ? wd.price : it.price;
-      var owned = wd ? !!P.weapons[it.key] : P.armor >= 100;
-      h += '<div class="item"><span><span class="k">' + (i + 1) + '</span><b>' + name + '</b>' +
-        (owned ? ' <span style="color:#8f825f">已装备</span>' : '') +
-        '</span><span class="price">$' + price + '</span></div>';
+      var priceTxt = (!wd && it.unit) ? '$' + price + '/' + it.unit : '$' + price;
+      var owned = '';
+      if (wd) owned = P.weapons[it.key] ? ' <span style="color:#8f825f">已装备</span>' : '';
+      else if (it.key === 'armor') owned = P.armor >= 100 ? ' <span style="color:#8f825f">已装备</span>' : '';
+      else if (it.key === 'helmet') owned = (P.armor >= 100 && P.helmet) ? ' <span style="color:#8f825f">已装备</span>' : '';
+      h += '<div class="item"><span><span class="k">' + it.slot + '</span><b>' + name + '</b>' +
+        (it.tag ? ' <span style="color:#8f825f">[' + it.tag + ']</span>' : '') + owned +
+        '</span><span class="price">' + priceTxt + '</span></div>';
     }
     h += '<div class="close">按数字购买 · 按 0 返回上级 · 按 B 关闭</div>';
   }
@@ -1803,16 +1844,26 @@ function buyRender() {
   el.buymsg = document.getElementById('buymsg');
 }
 
-function buyItem(catIdx, itemIdx) {
-  var it = BUY_CATS[catIdx].items[itemIdx];
+function buyItem(catIdx, slot) {
+  var items = BUY_CATS[catIdx].items, it = null;
+  for (var i = 0; i < items.length; i++) if (items[i].slot === slot) { it = items[i]; break; }
   if (!it) return;
+  if (it.key === 'ammoP' || it.key === 'ammoS') { buyAmmo(it.key === 'ammoP' ? 1 : 2, it.price); return; }
   var wd = WEAPONS[it.key];
   if (!wd) {
-    // 护甲
-    if (P.armor >= 100) { flashBuyMsg('护甲已满'); return; }
-    if (P.money < it.price) { blip(180, 0.15, 0.2); flashBuyMsg('金钱不足'); return; }
-    P.armor = 100;
-    P.money -= it.price;
+    // 装备：防弹衣 / 防弹衣+头盔
+    if (it.key === 'helmet') {
+      if (P.armor >= 100 && P.helmet) { flashBuyMsg('装备已满'); return; }
+      if (P.money < it.price) { blip(180, 0.15, 0.2); flashBuyMsg('金钱不足'); return; }
+      P.armor = 100;
+      P.helmet = true;
+      P.money -= it.price;
+    } else {
+      if (P.armor >= 100) { flashBuyMsg('护甲已满'); return; }
+      if (P.money < it.price) { blip(180, 0.15, 0.2); flashBuyMsg('金钱不足'); return; }
+      P.armor = 100;
+      P.money -= it.price;
+    }
   } else {
     if (P.money < wd.price) { blip(180, 0.15, 0.2); flashBuyMsg('金钱不足'); return; }
     // 替换同槽位
@@ -1824,6 +1875,22 @@ function buyItem(catIdx, itemIdx) {
   buyRender();
   blip(880, 0.08, 0.2, 'sine');
   flashBuyMsg('已购买');
+}
+
+// 弹药补给：按弹匣匣数计价，一次补满备弹
+function buyAmmo(slot, boxPrice) {
+  var k = slotKey(slot);
+  if (!k) { flashBuyMsg(slot === 1 ? '没有主武器' : '没有副武器'); return; }
+  var w = P.weapons[k], d = WEAPONS[k];
+  var boxes = Math.ceil((d.reserve - w.reserve) / d.mag);
+  if (boxes <= 0) { flashBuyMsg('备弹已满'); return; }
+  var cost = boxes * boxPrice;
+  if (P.money < cost) { blip(180, 0.15, 0.2); flashBuyMsg('金钱不足'); return; }
+  w.reserve = d.reserve;
+  P.money -= cost;
+  buyRender();
+  blip(880, 0.08, 0.2, 'sine');
+  flashBuyMsg('已购买 · -$' + cost);
 }
 
 var buyMsgT = null;
@@ -1838,7 +1905,7 @@ function flashBuyMsg(t) {
 // ---------------- HUD ----------------
 var el = {};
 function cacheEls() {
-  ['hp', 'hpbar', 'armor', 'ammo', 'wpnname', 'money', 'score', 'timer', 'alive', 'crosshair',
+  ['hp', 'hpbar', 'armor', 'helm', 'ammo', 'wpnname', 'money', 'score', 'timer', 'alive', 'crosshair',
    'hitmarker', 'killfeed', 'banner', 'bannersub', 'menu', 'hud', 'pause', 'dmgvig',
    'buymenu', 'hint', 'scope', 'opts', 'modedesc', 'pausemenu'].forEach(function (id) {
     el[id] = document.getElementById(id);
@@ -1901,9 +1968,11 @@ function updateHUD() {
     el.hpbar.style.width = Math.max(0, P.hp) + '%';
     el.hpbar.style.background = P.hp > 50 ? '#7fd65a' : (P.hp > 25 ? '#e8c33a' : '#e84a3a');
   }
-  if (hudPrev.armor !== P.armor) {
+  if (hudPrev.armor !== P.armor || hudPrev.helmet !== P.helmet) {
     hudPrev.armor = P.armor;
+    hudPrev.helmet = P.helmet;
     el.armor.textContent = Math.ceil(P.armor);
+    el.helm.textContent = P.helmet ? ' +盔' : '';
   }
   var w = curWpn(), d = curDef();
   var ammoTxt = d.melee ? '— 刀 —' :
@@ -2031,7 +2100,7 @@ function initInput() {
       var n = parseInt(e.code.slice(5), 10);
       if (n === 0 && buyCat !== null) { buyCat = null; buyRender(); }
       else if (buyCat === null) { if (n >= 1 && n <= BUY_CATS.length) { buyCat = n - 1; buyRender(); } }
-      else buyItem(buyCat, n - 1);
+      else buyItem(buyCat, n); // n = 原版槽位号（B→4→2 = AK-47）
     }
     if (e.code === 'Space') e.preventDefault();
   });
