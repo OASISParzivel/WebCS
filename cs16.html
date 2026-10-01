@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WEB-STRIKE 1.6 · 网页版反恐精英致敬</title>
+<title>WEB-STRIKE 1.7 · 网页版反恐精英致敬</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a0a;
@@ -14,6 +14,7 @@
   #menu {
     position: fixed; inset: 0; z-index: 50;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
+    overflow-y: auto; padding: 26px 0;
     background:
       radial-gradient(ellipse at 50% 30%, rgba(214,189,138,.18), transparent 60%),
       linear-gradient(180deg, #12100c 0%, #1c1811 50%, #0d0c09 100%);
@@ -24,18 +25,36 @@
     background: repeating-linear-gradient(0deg, rgba(0,0,0,.12) 0 1px, transparent 1px 3px);
   }
   #menu h1 {
-    font-size: 64px; letter-spacing: 8px; color: #e8c33a;
+    font-size: 56px; letter-spacing: 8px; color: #e8c33a;
     text-shadow: 0 0 24px rgba(232,195,58,.35), 0 3px 0 #6b5510;
     margin-bottom: 6px;
   }
   #menu h1 span { color: #c8b283; }
-  #menu .ver { font-size: 15px; letter-spacing: 6px; color: #8f825f; margin-bottom: 38px; }
+  #menu .ver { font-size: 14px; letter-spacing: 6px; color: #8f825f; margin-bottom: 20px; }
   #menu .brief {
-    width: 560px; text-align: left; font-size: 14px; line-height: 2.1;
+    width: 560px; text-align: center; font-size: 13px; line-height: 2;
     background: rgba(0,0,0,.35); border: 1px solid #4a4030;
-    padding: 18px 26px; margin-bottom: 34px; color: #b6a887;
+    padding: 12px 22px; margin-bottom: 18px; color: #b6a887;
   }
   #menu .brief b { color: #e8c33a; font-weight: normal; }
+
+  /* 自定义比赛面板 */
+  #opts { width: 560px; margin-bottom: 8px; }
+  .orow {
+    display: flex; align-items: center;
+    background: rgba(0,0,0,.35); border: 1px solid #4a4030; border-bottom: none;
+    padding: 8px 18px; font-size: 14px; color: #b6a887;
+  }
+  .orow:last-child { border-bottom: 1px solid #4a4030; }
+  .orow .lbl { width: 130px; color: #8f825f; letter-spacing: 2px; }
+  .orow .arr { cursor: pointer; color: #e8c33a; padding: 0 20px; font-size: 18px; line-height: 1; }
+  .orow .arr:hover { color: #fff; text-shadow: 0 0 8px rgba(232,195,58,.6); }
+  .orow .val { flex: 1; text-align: center; color: #e8c33a; letter-spacing: 1px; }
+  #modedesc {
+    width: 560px; text-align: center; font-size: 12px; color: #8f825f;
+    margin: 8px 0 20px; letter-spacing: 1px; line-height: 1.7; min-height: 20px;
+  }
+
   #menu button {
     font-family: inherit; font-size: 20px; letter-spacing: 6px;
     padding: 14px 58px; cursor: pointer;
@@ -43,7 +62,7 @@
     border: 2px solid #f5dd7a; box-shadow: 0 0 22px rgba(232,195,58,.3);
   }
   #menu button:hover { filter: brightness(1.12); }
-  #menu .foot { margin-top: 26px; font-size: 12px; color: #6b6248; letter-spacing: 2px; }
+  #menu .foot { margin-top: 22px; font-size: 12px; color: #6b6248; letter-spacing: 2px; }
 
   /* ---------- HUD ---------- */
   #hud { display: none; }
@@ -58,6 +77,7 @@
   #hpbar { height: 100%; width: 100%; background: #7fd65a; transition: width .15s; }
   #ammo-panel { right: 22px; bottom: 20px; text-align: right; }
   #ammo { font-size: 32px; font-weight: bold; color: #e8e2c8; }
+  #wpnname { font-size: 14px; color: #b6a887; letter-spacing: 2px; margin-top: 2px; }
   #money { font-size: 20px; color: #8fd65a; margin-top: 4px; }
   #topbar {
     top: 14px; left: 50%; transform: translateX(-50%);
@@ -109,7 +129,7 @@
     background: radial-gradient(ellipse at center, transparent 45%, rgba(200,10,10,.55) 100%);
   }
 
-  /* AWP 瞄准镜 */
+  /* 狙击镜 */
   #scope { display: none; position: fixed; inset: 0; z-index: 15; pointer-events: none; }
   #scope .mask { position: absolute; inset: 0;
     background: radial-gradient(circle at 50% 50%, transparent 31vmin, rgba(0,0,0,.985) 33vmin); }
@@ -144,19 +164,27 @@
     cursor: pointer; letter-spacing: 4px;
   }
   #pause .big { font-size: 34px; color: #e8c33a; margin-bottom: 14px; }
+  #pause button {
+    font-family: inherit; font-size: 15px; letter-spacing: 4px;
+    margin-top: 30px; padding: 10px 34px; cursor: pointer;
+    color: #e8c33a; background: transparent; border: 1px solid #6b6248;
+  }
+  #pause button:hover { background: rgba(232,195,58,.12); }
 </style>
 </head>
 <body>
 
 <div id="menu">
   <h1>WEB<span>-</span>STRIKE</h1>
-  <div class="ver">— 1 . 6 —</div>
+  <div class="ver">— 1 . 7 —</div>
   <div class="brief">
-    <b>任务简报：</b>你率 4 名 CT 队友突入沙漠据点，与 5 名武装分子（T）展开 5v5 团战——逐回合歼灭他们，先取 <b>5</b> 回合者胜。你阵亡后将进入队友观战视角，回合继续。<br>
-    <b>WASD</b> 移动 · <b>鼠标</b> 瞄准 · <b>左键</b> 射击 · <b>Shift</b> 静步 · <b>Ctrl/C</b> 蹲 · <b>空格</b> 跳<br>
-    <b>R</b> 换弹 · <b>B</b> 购买菜单（回合开始 5 秒内）· <b>1/2/3</b> 步枪/手枪/战术刀 · <b>右键</b> AWP 开镜<br>
-    爆头 4 倍伤害。后坐力已调校为弹跳回位——<b>站稳，点射，打头</b>。近身按 <b>3</b> 拔刀，<b>背刺一刀秒杀</b>。
+    4 张地图 · 3 种模式 · 16 种武器 · 4 档 AI 难度 —— 全部可在下方自由定制<br>
+    <b>WASD</b> 移动 · <b>鼠标</b> 瞄准 · <b>左键</b> 射击 · <b>右键</b> 开镜 · <b>Shift</b> 静步 · <b>Ctrl/C</b> 蹲 · <b>空格</b> 跳<br>
+    <b>R</b> 换弹 · <b>B</b> 购买菜单 · <b>1/2/3</b> 主武器/手枪/战术刀<br>
+    爆头 4 倍伤害，背刺一刀秒杀 —— 站稳，点射，打头
   </div>
+  <div id="opts"></div>
+  <div id="modedesc"></div>
   <button>开 始 作 战</button>
   <div class="foot">WEB-STRIKE · 向经典致敬的同人原型 · 与 Valve 无关，不含任何游戏原始资产</div>
 </div>
@@ -171,6 +199,7 @@
   </div>
   <div class="panel" id="ammo-panel">
     <div id="ammo">12 / 48</div>
+    <div id="wpnname">USP</div>
     <div id="money">$800</div>
   </div>
   <div class="panel" id="topbar">
@@ -193,19 +222,12 @@
 
 <div id="scope"><div class="mask"></div><div class="h"></div><div class="v"></div></div>
 
-<div id="buymenu">
-  <h3>购买装备</h3>
-  <div class="item"><span><span class="k">1</span><b>AK-47</b></span><span class="price">$2500</span></div>
-  <div class="item"><span><span class="k">2</span><b>M4A1</b></span><span class="price">$3100</span></div>
-  <div class="item"><span><span class="k">3</span><b>AWP</b></span><span class="price">$4750</span></div>
-  <div class="item"><span><span class="k">4</span><b>防弹护甲</b></span><span class="price">$650</span></div>
-  <div id="buymsg"></div>
-  <div class="close">按数字键购买 · 按 B 关闭</div>
-</div>
+<div id="buymenu"></div>
 
 <div id="pause">
   <div class="big">已 暂 停</div>
   <div>点击任意处返回战斗</div>
+  <button id="pausemenu">退出至主菜单</button>
 </div>
 
 <script src="./three.min.js"></script>
