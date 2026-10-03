@@ -440,20 +440,25 @@ var MAPS = [
   { name: '远射靶场', sky: 0xcfd8e2, fogCol: 0xc4ccd4, fogNear: 50, fogFar: 170, ambCol: 0xffffff, ambI: 0.55, sunCol: 0xfff6e0, sunI: 1.1,  viewDist: 80, build: buildAim }
 ];
 
+// 递归释放一个对象子树的 GPU 资源（three.js 的 remove 不会自动释放显存）
+function disposeDeep(o) {
+  for (var i = 0; i < o.children.length; i++) disposeDeep(o.children[i]);
+  if (o.geometry && o.geometry.dispose) o.geometry.dispose();
+  var m = o.material;
+  if (!m) return;
+  if (m.length !== undefined) { for (var k = 0; k < m.length; k++) m[k].dispose(); }
+  else m.dispose();
+}
+
 // 重建整张地图：清空上一张的静态物体（保留相机与灯光）
 function clearWorld() {
+  clearFx(); // 粒子/曳光先出场景（其几何体与材质为全局共享，只清引用不 dispose）
   for (var i = scene.children.length - 1; i >= 0; i--) {
     var o = scene.children[i];
     if (o === camera || o === ambLight || o === sunLight || o === flashLight) continue;
     scene.remove(o);
+    disposeDeep(o);
   }
-  for (var p = 0; p < parts.length; p++) scene.remove(parts[p].m);
-  parts = [];
-  for (var t = 0; t < tracers.length; t++) {
-    scene.remove(tracers[t].line);
-    tracers[t].line.geometry.dispose();
-  }
-  tracers = [];
   solids = [];
 }
 
@@ -759,7 +764,7 @@ function muzzleFlash(worldPos) {
 
 // ---------------- 视角模型（枪） ----------------
 function buildViewModel(key) {
-  if (vmGun) { vmRoot.remove(vmGun); }
+  if (vmGun) { vmRoot.remove(vmGun); disposeDeep(vmGun); }
   vmGun = new THREE.Group();
   var dark = new THREE.MeshLambertMaterial({ color: 0x2b2b2b });
   var wood = new THREE.MeshLambertMaterial({ color: 0x6b4a26 });
@@ -954,7 +959,10 @@ function spawnTeams() {
 }
 
 function clearBots() {
-  for (var i = 0; i < bots.length; i++) scene.remove(bots[i].mesh);
+  for (var i = 0; i < bots.length; i++) {
+    scene.remove(bots[i].mesh);
+    disposeDeep(bots[i].mesh);
+  }
   bots = [];
 }
 
@@ -992,7 +1000,7 @@ function updateBot(b, dt, now) {
     m.rotation.x = -Math.PI / 2 * k;
     m.position.y = 0.1 * k;
     if (b.dieT > 3) {
-      if (G.mode === 'classic') { scene.remove(m); b.gone = true; }
+      if (G.mode === 'classic') { scene.remove(m); disposeDeep(m); b.gone = true; }
       else respawnBot(b);
     }
     return;
@@ -1261,6 +1269,7 @@ function respawnPlayer() {
   refillAmmo();
   vmRoot.visible = true;
   el.hint.style.opacity = 0;
+  hintText = '';
   updateScopeUI();
   banner('重新部署', '', 1000);
 }
@@ -1619,7 +1628,7 @@ function startRound() {
   G.stateT = CFG.buyTime;
   G.roundT = CFG.roundTime;
   banner('第 ' + G.round + ' 回合', '按 B 打开购买菜单 · 准备接敌', 2400);
-  el.hint.textContent = '按 B 打开购买菜单';
+  setHint('按 B 打开购买菜单');
   el.buymenu.style.display = 'none';
   buyOpen = false;
   buyCat = null;
@@ -1635,10 +1644,10 @@ function startSkirmish() {
   G.roundT = G.mode === 'tdm' ? 360 : Infinity;
   if (G.mode === 'tdm') {
     banner('团队死斗', '先取 ' + G.target + ' 杀 · 按 B 随时购买', 2600);
-    el.hint.textContent = '按 B 打开购买菜单（随时可买）';
+    setHint('按 B 打开购买菜单（随时可买）');
   } else {
     banner('军备竞赛', '当前武器：' + WEAPONS[GG_LADDER[0]].name + ' · 击杀升级', 2600);
-    el.hint.textContent = '';
+    setHint('');
   }
   el.buymenu.style.display = 'none';
   buyOpen = false;
@@ -1800,6 +1809,12 @@ var BUY_CATS = [
 
 var buyOpen = false;
 var buyCat = null;
+var hintText = ''; // hint 当前文本缓存（避免每帧读写 DOM）
+
+function setHint(t) {
+  hintText = t;
+  el.hint.textContent = t;
+}
 
 function canBuy() {
   if (G.mode === 'classic') return G.state === 'buytime';
@@ -1840,6 +1855,7 @@ function buyRender() {
     }
     h += '<div class="close">按数字购买 · 按 0 返回上级 · 按 B 关闭</div>';
   }
+  h += '<div id="buymsg"></div>';
   el.buymenu.innerHTML = h;
   el.buymsg = document.getElementById('buymsg');
 }
@@ -2000,7 +2016,7 @@ function updateHUD() {
     hudPrev.gap = gap;
     el.crosshair.style.setProperty('--gap', gap + 'px');
   }
-  var hintOn = G.state === 'buytime' && !buyOpen && !!el.hint.textContent;
+  var hintOn = G.state === 'buytime' && !buyOpen && !!hintText;
   if (hudPrev.hint !== hintOn) { hudPrev.hint = hintOn; el.hint.style.opacity = hintOn ? 1 : 0; }
 }
 
@@ -2071,6 +2087,7 @@ function toMenu() {
   el.scope.style.display = 'none';
   el.killfeed.innerHTML = '';
   el.hint.style.opacity = 0;
+  hintText = '';
   buyOpen = false;
   renderMenu();
 }
@@ -2192,8 +2209,8 @@ function frame(dt, now) {
       // 死斗 / 军备竞赛：倒计时后重新部署
       if (G.mode !== 'classic' && G.state === 'live') {
         P.respawnT -= dt;
-        el.hint.textContent = '重新部署 ' + Math.max(0, P.respawnT).toFixed(1) + ' 秒';
-        el.hint.style.opacity = 1;
+        var ht = '重新部署 ' + Math.max(0, P.respawnT).toFixed(1) + ' 秒';
+        if (hintText !== ht) { setHint(ht); el.hint.style.opacity = 1; }
         if (P.respawnT <= 0) respawnPlayer();
       }
     }

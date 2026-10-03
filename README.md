@@ -50,6 +50,16 @@
 
 ## 在线游玩（不下载，直接开网页）
 
+### 方式一：GitHub Pages（推荐）
+
+仓库托管在 GitHub（`OASISParzivel/WebCS`）时，在 **Settings → Pages** 将 `main` 分支设为来源即可，之后直接访问：
+
+```
+https://oasisparzivel.github.io/WebCS/cs16.html
+```
+
+### 方式二：CNB 云开发预览
+
 CNB 平台本身不提供 GitHub Pages 式的静态托管，可用**云开发预览**直接开玩：
 
 1. 打开仓库 [cnb.cool/OASIS-Art3mis/webcs](https://cnb.cool/OASIS-Art3mis/webcs)，点 **云开发** 进入 WebIDE
